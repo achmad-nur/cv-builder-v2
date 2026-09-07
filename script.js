@@ -78,6 +78,49 @@ let data = defaultData();
 function esc(str){
   return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+// Escapes text for safe HTML output, then converts markdown-style **bold**
+// into real <strong> tags for the preview/print output.
+function fmt(str){
+  return esc(str).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+function toggleBold(el){
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const value = el.value;
+  if(start === end){
+    // no selection: insert an empty ** ** pair and place the cursor inside
+    el.value = value.slice(0,start) + '****' + value.slice(start);
+    el.selectionStart = el.selectionEnd = start + 2;
+  } else {
+    const selected = value.slice(start,end);
+    const alreadyBold = selected.length >= 4 && selected.startsWith('**') && selected.endsWith('**');
+    if(alreadyBold){
+      const unwrapped = selected.slice(2,-2);
+      el.value = value.slice(0,start) + unwrapped + value.slice(end);
+      el.selectionStart = start;
+      el.selectionEnd = start + unwrapped.length;
+    } else {
+      el.value = value.slice(0,start) + '**' + selected + '**' + value.slice(end);
+      el.selectionStart = start;
+      el.selectionEnd = end + 4;
+    }
+  }
+  // let the element's own 'input' listener pick up the change and update state
+  el.dispatchEvent(new Event('input', {bubbles:true}));
+}
+// Global Ctrl/Cmd+B handler: bolds the current selection in any text field
+// inside the form panel using markdown-style **bold** syntax.
+document.addEventListener('keydown', (e)=>{
+  const isBoldShortcut = (e.key === 'b' || e.key === 'B') && (e.ctrlKey || e.metaKey);
+  if(!isBoldShortcut) return;
+  const el = document.activeElement;
+  if(!el) return;
+  const isTextField = el.tagName === 'TEXTAREA' ||
+    (el.tagName === 'INPUT' && ['text','email','tel'].includes(el.type));
+  if(!isTextField || !formRoot.contains(el)) return;
+  e.preventDefault();
+  toggleBold(el);
+});
 function autoLink(text){
   // turns bare urls typed by user into <a> only in preview
   return esc(text);
@@ -583,7 +626,7 @@ function renderPreview(){
   if(data.github) linkParts.push(linkPill(data.github, data.github.replace(/^https?:\/\//,'')));
   const linksLine = linkParts.length ? `<div class="r-links">${linkParts.join('<span class="sep">•</span>')}</div>` : '';
 
-  const summaryLine = data.summary ? `<div class="r-summary">${esc(data.summary)}</div>` : '';
+  const summaryLine = data.summary ? `<div class="r-summary">${fmt(data.summary)}</div>` : '';
 
   const photoHtml = data.photo ? `
     <div class="r-photo">
@@ -596,12 +639,12 @@ function renderPreview(){
     const validEntries = sec.entries.filter(e => e.left || e.subLeft || e.bullets.some(b=>b));
     if(validEntries.length===0) return '';
     const entriesHtml = validEntries.map(e=>{
-      const bulletsHtml = e.bullets.filter(b=>b.trim()).map(b=>`<li>${esc(b)}</li>`).join('');
+      const bulletsHtml = e.bullets.filter(b=>b.trim()).map(b=>`<li>${fmt(b)}</li>`).join('');
       const subRightDisplay = (key === 'education' && e.subRight) ? `GPA: ${e.subRight}` : e.subRight;
       return `
         <div class="r-entry">
-          <div class="r-line"><span class="left">${esc(e.left)}</span><span class="right">${esc(e.right)}</span></div>
-          ${(e.subLeft || subRightDisplay) ? `<div class="r-subline"><span class="subline-left">${esc(e.subLeft)}</span><span class="subline-right">${esc(subRightDisplay)}</span></div>` : ''}
+          <div class="r-line"><span class="left">${fmt(e.left)}</span><span class="right">${fmt(e.right)}</span></div>
+          ${(e.subLeft || subRightDisplay) ? `<div class="r-subline"><span class="subline-left">${fmt(e.subLeft)}</span><span class="subline-right">${fmt(subRightDisplay)}</span></div>` : ''}
           ${bulletsHtml ? `<ul class="r-bullets">${bulletsHtml}</ul>` : ''}
         </div>`;
     }).join('');
@@ -619,7 +662,7 @@ function renderPreview(){
       <div class="r-entries">
         ${certsValid.map(c=>`
           <div class="r-cert-row">
-            <span>${c.link ? linkPill(c.link, c.name) : esc(c.name)}${c.issuer ? ' — ' + esc(c.issuer) : ''}</span>
+            <span>${c.link ? linkPill(c.link, c.name) : fmt(c.name)}${c.issuer ? ' — ' + fmt(c.issuer) : ''}</span>
             <span>${esc(c.date)}</span>
           </div>`).join('')}
       </div>
@@ -630,7 +673,7 @@ function renderPreview(){
     <div class="r-section">
       <div class="r-section-title">SKILLS</div>
       <div class="r-entries">
-        ${skillsValid.map(s=>`<div class="r-skill-row"><span class="cat">${esc(s.category)}:</span> ${esc(s.items)}</div>`).join('')}
+        ${skillsValid.map(s=>`<div class="r-skill-row"><span class="cat">${fmt(s.category)}:</span> ${fmt(s.items)}</div>`).join('')}
       </div>
     </div>` : '';
 
