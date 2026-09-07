@@ -3,8 +3,28 @@
    ========================================================= */
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = [];
+for(let y = CURRENT_YEAR + 6; y >= 1980; y--) YEARS.push(y);
+
+// Which repeatable sections use a Month/Year date-range picker
+// instead of a free-text "period" field.
+const PERIOD_SECTIONS = { education:true, experience:true, volunteer:true, projects:true, awards:false };
+
+function formatPeriod(e){
+  const startStr = [e.startMonth, e.startYear].filter(Boolean).join(' ');
+  const endStr = e.current ? 'Present' : [e.endMonth, e.endYear].filter(Boolean).join(' ');
+  if(!startStr && !endStr) return '';
+  if(startStr && endStr) return `${startStr} - ${endStr}`;
+  return startStr || endStr;
+}
+
 function emptyEntry(){
-  return { id:uid(), left:'', right:'', subLeft:'', subRight:'', bullets:[''] };
+  return {
+    id:uid(), left:'', right:'', subLeft:'', subRight:'', bullets:[''],
+    startMonth:'', startYear:'', endMonth:'', endYear:'', current:false
+  };
 }
 
 function defaultData(){
@@ -123,7 +143,7 @@ function basicsFieldset(){
 }
 
 const SECTION_FIELD_LABELS = {
-  education:  { left:'Nama sekolah / universitas', right:'Periode (mis. Aug 2020 - Dec 2024)', subLeft:'Gelar & jurusan', subRight:'GPA / lokasi' },
+  education:  { left:'Nama sekolah / universitas', right:'Periode', subLeft:'Gelar & jurusan', subRight:'GPA (cukup angkanya, mis. 3.71)' },
   experience: { left:'Jabatan', right:'Periode', subLeft:'Nama perusahaan', subRight:'Lokasi' },
   volunteer:  { left:'Peran', right:'Periode', subLeft:'Organisasi', subRight:'Lokasi' },
   projects:   { left:'Nama proyek', right:'Periode', subLeft:'Link proyek (opsional)', subRight:'Lokasi (opsional)' },
@@ -153,12 +173,33 @@ function entryCard(sectionKey, e, idx, fLabels){
     </div>
   `).join('');
 
-  return `
-  <div class="entry-card" data-entry-id="${e.id}">
-    <div class="entry-head">
-      <span class="tag">Entri ${idx+1}</span>
-      <button class="icon-btn" type="button" data-remove-entry="${sectionKey}" data-entry-id="${e.id}" title="Hapus entri">✕ Remove</button>
+  const isPeriod = PERIOD_SECTIONS[sectionKey];
+
+  const monthOptions = (selected) => `<option value="">Bulan</option>` +
+    MONTHS.map(m => `<option value="${m}" ${selected===m?'selected':''}>${m}</option>`).join('');
+  const yearOptions = (selected) => `<option value="">Tahun</option>` +
+    YEARS.map(y => `<option value="${y}" ${String(selected)===String(y)?'selected':''}>${y}</option>`).join('');
+
+  const titleDateBlock = isPeriod ? `
+    <label>${fLabels.left}</label>
+    <input type="text" data-field-section="${sectionKey}" data-entry-id="${e.id}" data-field="left" value="${esc(e.left)}">
+
+    <label>Mulai</label>
+    <div class="period-row">
+      <select data-period-section="${sectionKey}" data-entry-id="${e.id}" data-period-field="startMonth">${monthOptions(e.startMonth)}</select>
+      <select data-period-section="${sectionKey}" data-entry-id="${e.id}" data-period-field="startYear">${yearOptions(e.startYear)}</select>
     </div>
+
+    <label>Selesai</label>
+    <div class="period-row">
+      <select data-period-section="${sectionKey}" data-entry-id="${e.id}" data-period-field="endMonth" ${e.current?'disabled':''}>${monthOptions(e.endMonth)}</select>
+      <select data-period-section="${sectionKey}" data-entry-id="${e.id}" data-period-field="endYear" ${e.current?'disabled':''}>${yearOptions(e.endYear)}</select>
+    </div>
+    <label class="checkbox-label">
+      <input type="checkbox" data-period-section="${sectionKey}" data-entry-id="${e.id}" data-period-field="current" ${e.current?'checked':''}>
+      Masih berlangsung sampai sekarang (Present)
+    </label>
+  ` : `
     <div class="row2">
       <div>
         <label>${fLabels.left}</label>
@@ -169,6 +210,15 @@ function entryCard(sectionKey, e, idx, fLabels){
         <input type="text" data-field-section="${sectionKey}" data-entry-id="${e.id}" data-field="right" value="${esc(e.right)}">
       </div>
     </div>
+  `;
+
+  return `
+  <div class="entry-card" data-entry-id="${e.id}">
+    <div class="entry-head">
+      <span class="tag">Entri ${idx+1}</span>
+      <button class="icon-btn" type="button" data-remove-entry="${sectionKey}" data-entry-id="${e.id}" title="Hapus entri">✕ Remove</button>
+    </div>
+    ${titleDateBlock}
     <div class="row2">
       <div>
         <label>${fLabels.subLeft}</label>
@@ -176,7 +226,7 @@ function entryCard(sectionKey, e, idx, fLabels){
       </div>
       <div>
         <label>${fLabels.subRight}</label>
-        <input type="text" data-field-section="${sectionKey}" data-entry-id="${e.id}" data-field="subRight" value="${esc(e.subRight)}">
+        <input type="text" data-field-section="${sectionKey}" data-entry-id="${e.id}" data-field="subRight" value="${esc(e.subRight)}" ${sectionKey==='education' ? 'placeholder="3.71"' : ''}>
       </div>
     </div>
     <div class="bullets">
@@ -350,6 +400,30 @@ function attachFormEvents(){
     });
   });
 
+  // period (month/year) pickers
+  formRoot.querySelectorAll('[data-period-field]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const key = el.dataset.periodSection, id = el.dataset.entryId, field = el.dataset.periodField;
+      const entry = data.sections[key].entries.find(en=>en.id===id);
+      if(!entry) return;
+      if(field === 'current'){
+        entry.current = el.checked;
+      } else {
+        entry[field] = el.value;
+      }
+      entry.right = formatPeriod(entry);
+      // toggle end-date selects without a full form re-render (keeps scroll position)
+      const card = el.closest('.entry-card');
+      if(card){
+        const endMonthEl = card.querySelector('[data-period-field="endMonth"]');
+        const endYearEl = card.querySelector('[data-period-field="endYear"]');
+        if(endMonthEl) endMonthEl.disabled = entry.current;
+        if(endYearEl) endYearEl.disabled = entry.current;
+      }
+      renderPreview();
+    });
+  });
+
   // add bullet
   formRoot.querySelectorAll('[data-add-bullet]').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -478,17 +552,18 @@ function renderPreview(){
     if(validEntries.length===0) return '';
     const entriesHtml = validEntries.map(e=>{
       const bulletsHtml = e.bullets.filter(b=>b.trim()).map(b=>`<li>${esc(b)}</li>`).join('');
+      const subRightDisplay = (key === 'education' && e.subRight) ? `GPA: ${e.subRight}` : e.subRight;
       return `
         <div class="r-entry">
           <div class="r-line"><span class="left">${esc(e.left)}</span><span class="right">${esc(e.right)}</span></div>
-          ${(e.subLeft || e.subRight) ? `<div class="r-subline"><span>${esc(e.subLeft)}</span><span>${esc(e.subRight)}</span></div>` : ''}
+          ${(e.subLeft || subRightDisplay) ? `<div class="r-subline"><span class="subline-left">${esc(e.subLeft)}</span><span class="subline-right">${esc(subRightDisplay)}</span></div>` : ''}
           ${bulletsHtml ? `<ul class="r-bullets">${bulletsHtml}</ul>` : ''}
         </div>`;
     }).join('');
     return `
       <div class="r-section">
         <div class="r-section-title">${esc(sec.label)}</div>
-        ${entriesHtml}
+        <div class="r-entries">${entriesHtml}</div>
       </div>`;
   }).join('');
 
@@ -496,25 +571,31 @@ function renderPreview(){
   const certsHtml = certsValid.length ? `
     <div class="r-section">
       <div class="r-section-title">CERTIFICATIONS</div>
-      ${certsValid.map(c=>`
-        <div class="r-cert-row">
-          <span>${c.link ? linkPill(c.link, c.name) : esc(c.name)}${c.issuer ? ' — ' + esc(c.issuer) : ''}</span>
-          <span>${esc(c.date)}</span>
-        </div>`).join('')}
+      <div class="r-entries">
+        ${certsValid.map(c=>`
+          <div class="r-cert-row">
+            <span>${c.link ? linkPill(c.link, c.name) : esc(c.name)}${c.issuer ? ' — ' + esc(c.issuer) : ''}</span>
+            <span>${esc(c.date)}</span>
+          </div>`).join('')}
+      </div>
     </div>` : '';
 
   const skillsValid = data.skills.filter(s=>s.category || s.items);
   const skillsHtml = skillsValid.length ? `
     <div class="r-section">
       <div class="r-section-title">SKILLS</div>
-      ${skillsValid.map(s=>`<div class="r-skill-row"><span class="cat">${esc(s.category)}:</span> ${esc(s.items)}</div>`).join('')}
+      <div class="r-entries">
+        ${skillsValid.map(s=>`<div class="r-skill-row"><span class="cat">${esc(s.category)}:</span> ${esc(s.items)}</div>`).join('')}
+      </div>
     </div>` : '';
 
   const langsValid = data.languages.filter(l=>l.name);
   const langsHtml = langsValid.length ? `
     <div class="r-section">
       <div class="r-section-title">LANGUAGES</div>
-      <div class="r-lang">${langsValid.map(l=> esc(l.name) + (l.level ? ` (${esc(l.level)})` : '')).join(' • ')}</div>
+      <div class="r-entries">
+        <div class="r-lang">${langsValid.map(l=> esc(l.name) + (l.level ? ` (${esc(l.level)})` : '')).join(' • ')}</div>
+      </div>
     </div>` : '';
 
   const headerTextHtml = `

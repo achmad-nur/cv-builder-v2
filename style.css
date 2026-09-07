@@ -136,7 +136,7 @@
     color:var(--shell-text-dim);
     margin:10px 0 4px;
   }
-  input[type=text], input[type=email], input[type=tel], textarea{
+  input[type=text], input[type=email], input[type=tel], textarea, select{
     width:100%;
     font-family:inherit;
     font-size:13.5px;
@@ -147,10 +147,34 @@
     padding:9px 10px;
     resize:vertical;
   }
-  input:focus, textarea:focus{
+  select{
+    padding:8px 10px;
+  }
+  input:focus, textarea:focus, select:focus{
     outline:2px solid var(--accent);
     outline-offset:1px;
     border-color:var(--accent);
+  }
+  .period-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin:4px 0 2px;
+  }
+  .checkbox-label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12.5px;
+    font-weight:500;
+    text-transform:none;
+    letter-spacing:normal;
+    color:var(--shell-text-dim);
+    margin:10px 0 4px;
+  }
+  .checkbox-label input[type=checkbox]{
+    width:auto;
+    accent-color:var(--accent);
   }
   .row2{
     display:grid;
@@ -349,6 +373,9 @@
   }
   .r-entry{ margin-bottom:9px; }
   .r-entry:last-child{ margin-bottom:0; }
+  .r-entries{
+    margin-left:14px;
+  }
   .r-line{
     display:flex;
     justify-content:space-between;
@@ -360,9 +387,16 @@
     display:flex;
     justify-content:space-between;
     gap:10px;
-    font-style:italic;
     color:#333;
     margin-bottom:2px;
+  }
+  .r-subline .subline-left{
+    font-style:italic;
+  }
+  .r-subline .subline-right{
+    font-weight:700;
+    font-style:normal;
+    white-space:nowrap;
   }
   .r-bullets{
     margin:3px 0 0 18px;
