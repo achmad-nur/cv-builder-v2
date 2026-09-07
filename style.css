@@ -228,6 +228,29 @@
     padding:6px 2px 4px;
   }
 
+  .photo-preview-wrap{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .photo-preview{
+    width:64px;
+    height:82px;
+    object-fit:cover;
+    border-radius:7px;
+    border:1px solid var(--shell-line);
+    flex:0 0 auto;
+  }
+  .photo-preview-actions{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .btn-small{
+    padding:6px 10px;
+    font-size:12px;
+  }
+
   /* ---------- Right: live preview ---------- */
   .preview-wrap{
     background:#14171b;
@@ -247,6 +270,32 @@
     font-family:Arial, Helvetica, sans-serif;
     font-size:10.6pt;
     line-height:1.42;
+  }
+  .r-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:2px;
+  }
+  .r-header-text{
+    flex:1;
+    min-width:0;
+  }
+  .r-photo{
+    flex:0 0 auto;
+    width:98px;
+    height:124px;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid #d3d7dc;
+    box-shadow:0 1px 4px rgba(18,33,59,0.18);
+  }
+  .r-photo img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
   }
   .r-name{
     text-align:center;
@@ -270,6 +319,18 @@
     margin-bottom:14px;
   }
   .r-links a{color:var(--link); text-decoration:underline; margin:0 8px;}
+
+  /* When a photo is present, align header text left instead of centered
+     so it reads cleanly next to the photo column */
+  .r-header.has-photo .r-name,
+  .r-header.has-photo .r-contact,
+  .r-header.has-photo .r-links{
+    text-align:left;
+  }
+  .r-header.has-photo .r-contact .sep,
+  .r-header.has-photo .r-links .sep{
+    margin:0 6px;
+  }
 
   .r-summary{
     margin:0 0 14px;

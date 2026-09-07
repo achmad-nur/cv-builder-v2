@@ -9,6 +9,7 @@ function emptyEntry(){
 
 function defaultData(){
   return {
+    photo: null,
     name: 'Nama Lengkap Anda',
     title: '',
     location: 'Kota, Negara',
@@ -50,6 +51,7 @@ const formRoot = document.getElementById('formRoot');
 
 function renderForm(){
   formRoot.innerHTML = `
+    ${photoFieldset()}
     ${basicsFieldset()}
     ${repeatableFieldset('education')}
     ${repeatableFieldset('experience')}
@@ -61,6 +63,30 @@ function renderForm(){
     ${languagesFieldset()}
   `;
   attachFormEvents();
+}
+
+function photoFieldset(){
+  const preview = data.photo ? `
+    <div class="photo-preview-wrap">
+      <img src="${data.photo}" alt="Preview foto" class="photo-preview">
+      <div class="photo-preview-actions">
+        <label class="btn btn-ghost btn-small" style="cursor:pointer;">
+          Ganti foto
+          <input type="file" id="photoInput" accept="image/*" style="display:none;">
+        </label>
+        <button class="btn btn-ghost btn-small" type="button" id="removePhoto">Hapus foto</button>
+      </div>
+    </div>` : `
+    <label class="btn" style="cursor:pointer; display:inline-block;">
+      Upload foto
+      <input type="file" id="photoInput" accept="image/*" style="display:none;">
+    </label>
+    <div class="empty-hint">Belum ada foto. Disarankan foto formal rasio potret (3:4).</div>`;
+  return `
+  <fieldset>
+    <legend>Foto Profil (opsional)</legend>
+    ${preview}
+  </fieldset>`;
 }
 
 function basicsFieldset(){
@@ -241,7 +267,46 @@ function languagesFieldset(){
 /* =========================================================
    EVENTS — FORM → STATE
    ========================================================= */
+function handlePhotoUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ alert('File harus berupa gambar (JPG/PNG).'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      // resize supaya file tidak terlalu besar
+      const maxDim = 700;
+      let w = img.width, h = img.height;
+      if(w > maxDim || h > maxDim){
+        if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      data.photo = canvas.toDataURL('image/jpeg', 0.87);
+      renderForm();
+      renderPreview();
+    };
+    img.onerror = ()=> alert('Gagal memuat gambar. Coba file lain.');
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
 function attachFormEvents(){
+  // photo
+  const photoInput = document.getElementById('photoInput');
+  if(photoInput) photoInput.addEventListener('change', handlePhotoUpload);
+  const removePhotoBtn = document.getElementById('removePhoto');
+  if(removePhotoBtn) removePhotoBtn.addEventListener('click', ()=>{
+    data.photo = null;
+    renderForm(); renderPreview();
+  });
+
   // basics
   formRoot.querySelectorAll('[data-path]').forEach(el=>{
     el.addEventListener('input', ()=>{
@@ -401,6 +466,11 @@ function renderPreview(){
 
   const summaryLine = data.summary ? `<div class="r-summary">${esc(data.summary)}</div>` : '';
 
+  const photoHtml = data.photo ? `
+    <div class="r-photo">
+      <img src="${data.photo}" alt="Foto profil">
+    </div>` : '';
+
   const sectionOrder = ['education','experience','volunteer','projects','awards'];
   const sectionsHtml = sectionOrder.map(key=>{
     const sec = data.sections[key];
@@ -447,10 +517,17 @@ function renderPreview(){
       <div class="r-lang">${langsValid.map(l=> esc(l.name) + (l.level ? ` (${esc(l.level)})` : '')).join(' • ')}</div>
     </div>` : '';
 
-  page.innerHTML = `
+  const headerTextHtml = `
     <div class="r-name">${esc(data.name || 'Nama Lengkap Anda')}</div>
     ${contactLine ? `<div class="r-contact">${contactLine}</div>` : ''}
     ${linksLine}
+  `;
+
+  page.innerHTML = `
+    <div class="r-header ${data.photo ? 'has-photo' : ''}">
+      <div class="r-header-text">${headerTextHtml}</div>
+      ${photoHtml}
+    </div>
     ${summaryLine}
     ${sectionsHtml}
     ${certsHtml}
