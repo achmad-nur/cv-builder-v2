@@ -27,6 +27,25 @@ function emptyEntry(){
   };
 }
 
+// If a bullet's text contains line breaks (e.g. typed with Enter, or pasted
+// as a multi-line paragraph), split it into separate bullet entries so each
+// line renders as its own list item instead of one run-on paragraph.
+function normalizeBullets(){
+  Object.keys(data.sections).forEach(key=>{
+    data.sections[key].entries.forEach(entry=>{
+      const split = [];
+      entry.bullets.forEach(b=>{
+        if(b.indexOf('\n') !== -1){
+          b.split('\n').forEach(line => split.push(line));
+        } else {
+          split.push(b);
+        }
+      });
+      entry.bullets = split.length ? split : [''];
+    });
+  });
+}
+
 function defaultData(){
   return {
     photo: null,
@@ -70,6 +89,7 @@ function autoLink(text){
 const formRoot = document.getElementById('formRoot');
 
 function renderForm(){
+  normalizeBullets();
   formRoot.innerHTML = `
     ${photoFieldset()}
     ${basicsFieldset()}
@@ -449,7 +469,32 @@ function attachFormEvents(){
     el.addEventListener('input', ()=>{
       const key = el.dataset.bulletSection, id = el.dataset.entry, bi = parseInt(el.dataset.bulletIndex,10);
       const entry = data.sections[key].entries.find(e=>e.id===id);
-      if(entry) entry.bullets[bi] = el.value;
+      if(!entry) return;
+
+      if(el.value.indexOf('\n') !== -1){
+        // Enter was pressed (or multi-line text was pasted): split into
+        // separate bullets instead of keeping the line break inline.
+        const parts = el.value.split('\n');
+        entry.bullets[bi] = parts[0];
+        const rest = parts.slice(1);
+        entry.bullets.splice(bi + 1, 0, ...rest);
+        renderForm();
+        renderPreview();
+        requestAnimationFrame(()=>{
+          const newIndex = bi + rest.length;
+          const newEl = formRoot.querySelector(
+            `[data-bullet-section="${key}"][data-entry="${id}"][data-bullet-index="${newIndex}"]`
+          );
+          if(newEl){
+            newEl.focus();
+            const len = newEl.value.length;
+            newEl.setSelectionRange(len, len);
+          }
+        });
+        return;
+      }
+
+      entry.bullets[bi] = el.value;
       renderPreview();
     });
   });
@@ -640,6 +685,7 @@ document.getElementById('fileImport').addEventListener('change', (e)=>{
     try{
       const parsed = JSON.parse(reader.result);
       data = parsed;
+      normalizeBullets();
       renderForm(); renderPreview();
     }catch(err){
       alert('File JSON tidak valid.');
