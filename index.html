@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CV Builder — ATS Friendly Resume</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- LEFT: FORM -->
+  <div class="panel">
+    <div class="brand">
+      <h1>CV Builder</h1>
+      <span>ATS-friendly resume, edit &amp; export</span>
+    </div>
+    <div class="panel-scroll" id="formRoot"></div>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btnPrint">Download as PDF</button>
+      <button class="btn" id="btnExport">Save JSON</button>
+      <label class="btn btn-ghost" style="cursor:pointer;">
+        Load JSON
+        <input type="file" id="fileImport" accept="application/json" style="display:none;">
+      </label>
+      <button class="btn btn-ghost" id="btnReset">Reset</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: LIVE PREVIEW -->
+  <div class="preview-wrap">
+    <div class="page" id="page"></div>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
