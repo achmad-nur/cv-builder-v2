@@ -229,29 +229,10 @@
   .bullets{
     margin-top:8px;
   }
-  .bullet-row{
-    display:flex;
-    gap:6px;
-    margin-bottom:6px;
-    align-items:flex-start;
+  .bullets textarea{
+    min-height:96px;
+    line-height:1.5;
   }
-  .bullet-row textarea{
-    min-height:36px;
-    flex:1;
-  }
-  .bullet-add{
-    font-size:12px;
-    color:var(--accent);
-    background:none;
-    border:1px dashed var(--shell-line);
-    border-radius:6px;
-    padding:6px 10px;
-    cursor:pointer;
-    width:100%;
-    text-align:left;
-    margin-top:2px;
-  }
-  .bullet-add:hover{border-color:var(--accent);}
 
   .empty-hint{
     font-size:12.5px;
@@ -427,17 +408,43 @@
 
   /* ---------- Print ---------- */
   @media print{
-    body *{ visibility:hidden; }
-    .page, .page *{ visibility:visible; }
+    .app{ display:block; }
+    .panel{ display:none !important; }
+    .preview-wrap{
+      display:block;
+      background:#fff;
+      padding:0;
+      max-height:none;
+      overflow:visible;
+    }
     .page{
-      position:absolute;
-      top:0; left:0;
       box-shadow:none;
       width:auto;
       min-height:auto;
-      padding:18mm 16mm;
+      padding:0;
+      margin:0;
     }
-    @page{ margin:0; size:A4; }
+    /* Margin here applies consistently to every printed page (unlike padding
+       on .page, which the browser only honors on the first/last page of a
+       multi-page element) — this is what keeps page 2+ from hugging the edge. */
+    @page{ margin:18mm 16mm; size:A4; }
+
+    /* Keep each entry, header block, and row together — never split an
+       item's title from its own bullets/date across a page boundary.
+       Content that doesn't fit simply flows onto a fresh page instead. */
+    .r-entry,
+    .r-header,
+    .r-cert-row,
+    .r-skill-row{
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    /* Don't leave a lone section title stranded at the bottom of a page
+       with its first entry pushed to the next one. */
+    .r-section-title{
+      break-after: avoid;
+      page-break-after: avoid;
+    }
   }
 
   @media (max-width:980px){
