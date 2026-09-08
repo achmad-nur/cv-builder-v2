@@ -22,28 +22,31 @@ function formatPeriod(e){
 
 function emptyEntry(){
   return {
-    id:uid(), left:'', right:'', subLeft:'', subRight:'', bullets:[''],
+    id:uid(), left:'', right:'', subLeft:'', subRight:'', bulletsText:'',
     startMonth:'', startYear:'', endMonth:'', endYear:'', current:false
   };
 }
 
-// If a bullet's text contains line breaks (e.g. typed with Enter, or pasted
-// as a multi-line paragraph), split it into separate bullet entries so each
-// line renders as its own list item instead of one run-on paragraph.
-function normalizeBullets(){
-  Object.keys(data.sections).forEach(key=>{
-    data.sections[key].entries.forEach(entry=>{
-      const split = [];
-      entry.bullets.forEach(b=>{
-        if(b.indexOf('\n') !== -1){
-          b.split('\n').forEach(line => split.push(line));
-        } else {
-          split.push(b);
-        }
-      });
-      entry.bullets = split.length ? split : [''];
-    });
+// Backward compatibility: older exported JSON files stored bullets as an
+// array of strings (data.sections.X.entries[].bullets). Convert those into
+// the current single multi-line bulletsText field.
+function migrateEntry(entry){
+  if(entry.bulletsText === undefined){
+    entry.bulletsText = Array.isArray(entry.bullets)
+      ? entry.bullets.filter(b=>b && b.trim()).join('\n')
+      : '';
+  }
+  delete entry.bullets;
+  return entry;
+}
+function migrateData(d){
+  Object.keys(d.sections||{}).forEach(key=>{
+    d.sections[key].entries = d.sections[key].entries.map(migrateEntry);
   });
+  if(!Array.isArray(d.sectionOrder) || !d.sectionOrder.length){
+    d.sectionOrder = Object.keys(d.sections || {});
+  }
+  return d;
 }
 
 function defaultData(){
@@ -64,6 +67,9 @@ function defaultData(){
       projects:    { label:'PROJECTS',    entries:[] },
       awards:      { label:'AWARDS',      entries:[] }
     },
+    // Controls which order these sections appear in, both in the form and
+    // in the CV preview. Reorderable via the ▲▼ buttons on each fieldset.
+    sectionOrder: ['education','experience','volunteer','projects','awards'],
     certifications: [ { id:uid(), name:'', issuer:'', link:'', date:'' } ],
     skills: [ { id:uid(), category:'Web Development', items:'HTML, CSS, PHP, JavaScript' } ],
     languages: [ { id:uid(), name:'Indonesia', level:'Native proficiency' } ]
@@ -132,15 +138,10 @@ function autoLink(text){
 const formRoot = document.getElementById('formRoot');
 
 function renderForm(){
-  normalizeBullets();
   formRoot.innerHTML = `
     ${photoFieldset()}
     ${basicsFieldset()}
-    ${repeatableFieldset('education')}
-    ${repeatableFieldset('experience')}
-    ${repeatableFieldset('volunteer')}
-    ${repeatableFieldset('projects')}
-    ${repeatableFieldset('awards')}
+    ${data.sectionOrder.map((key,idx) => repeatableFieldset(key, idx, data.sectionOrder.length)).join('')}
     ${certificationsFieldset()}
     ${skillsFieldset()}
     ${languagesFieldset()}
@@ -213,29 +214,28 @@ const SECTION_FIELD_LABELS = {
   awards:     { left:'Nama penghargaan', right:'Tanggal', subLeft:'Pemberi penghargaan', subRight:'' }
 };
 
-function repeatableFieldset(key){
+function repeatableFieldset(key, orderIdx, orderTotal){
   const sec = data.sections[key];
   const fLabels = SECTION_FIELD_LABELS[key];
   const entries = sec.entries.map((e,i) => entryCard(key, e, i, fLabels)).join('');
+  const isFirst = orderIdx === 0;
+  const isLast = orderIdx === orderTotal - 1;
   return `
   <fieldset data-section="${key}">
     <legend>
       <input type="text" class="section-title-input" data-section-label="${key}" value="${esc(sec.label)}"
         style="background:none;border:none;color:inherit;font:inherit;padding:0;width:auto;flex:1;">
-      <button class="add-btn" data-add-entry="${key}" type="button">+ Add</button>
+      <span class="legend-actions">
+        <button class="move-btn" type="button" data-move-section="${key}" data-direction="up" ${isFirst?'disabled':''} title="Pindah section ke atas">▲</button>
+        <button class="move-btn" type="button" data-move-section="${key}" data-direction="down" ${isLast?'disabled':''} title="Pindah section ke bawah">▼</button>
+        <button class="add-btn" data-add-entry="${key}" type="button">+ Add</button>
+      </span>
     </legend>
     ${entries || `<div class="empty-hint">Belum ada entri. Klik "+ Add" untuk menambahkan.</div>`}
   </fieldset>`;
 }
 
 function entryCard(sectionKey, e, idx, fLabels){
-  const bullets = e.bullets.map((b,bi) => `
-    <div class="bullet-row">
-      <textarea rows="1" data-bullet-section="${sectionKey}" data-entry="${e.id}" data-bullet-index="${bi}" placeholder="Poin pencapaian / tanggung jawab...">${esc(b)}</textarea>
-      <button class="icon-btn" type="button" data-remove-bullet="${sectionKey}" data-entry-id="${e.id}" data-bullet-index="${bi}" title="Hapus poin">✕</button>
-    </div>
-  `).join('');
-
   const isPeriod = PERIOD_SECTIONS[sectionKey];
 
   const monthOptions = (selected) => `<option value="">Bulan</option>` +
@@ -293,9 +293,8 @@ function entryCard(sectionKey, e, idx, fLabels){
       </div>
     </div>
     <div class="bullets">
-      <label style="margin-top:12px;">Poin-poin (bullets)</label>
-      ${bullets}
-      <button class="bullet-add" type="button" data-add-bullet="${sectionKey}" data-entry-id="${e.id}">+ Tambah poin</button>
+      <label style="margin-top:12px;">Poin-poin (bullets) — satu poin per baris, tekan Enter untuk poin baru</label>
+      <textarea rows="4" data-bullettext-section="${sectionKey}" data-entry-id="${e.id}" placeholder="Ketik satu poin, lalu Enter untuk poin berikutnya...">${esc(e.bulletsText)}</textarea>
     </div>
   </div>`;
 }
@@ -436,6 +435,21 @@ function attachFormEvents(){
     });
   });
 
+  // reorder sections (move up/down)
+  formRoot.querySelectorAll('[data-move-section]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const key = el.dataset.moveSection;
+      const dir = el.dataset.direction;
+      const idx = data.sectionOrder.indexOf(key);
+      const swapWith = dir === 'up' ? idx - 1 : idx + 1;
+      if(idx === -1 || swapWith < 0 || swapWith >= data.sectionOrder.length) return;
+      const order = data.sectionOrder;
+      [order[idx], order[swapWith]] = [order[swapWith], order[idx]];
+      renderForm();
+      renderPreview();
+    });
+  });
+
   // add entry
   formRoot.querySelectorAll('[data-add-entry]').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -487,57 +501,12 @@ function attachFormEvents(){
     });
   });
 
-  // add bullet
-  formRoot.querySelectorAll('[data-add-bullet]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const key = el.dataset.addBullet, id = el.dataset.entryId;
-      const entry = data.sections[key].entries.find(e=>e.id===id);
-      if(entry) entry.bullets.push('');
-      renderForm(); renderPreview();
-    });
-  });
-
-  // remove bullet
-  formRoot.querySelectorAll('[data-remove-bullet]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const key = el.dataset.removeBullet, id = el.dataset.entryId, bi = parseInt(el.dataset.bulletIndex,10);
-      const entry = data.sections[key].entries.find(e=>e.id===id);
-      if(entry){ entry.bullets.splice(bi,1); if(entry.bullets.length===0) entry.bullets.push(''); }
-      renderForm(); renderPreview();
-    });
-  });
-
-  // bullet text input
-  formRoot.querySelectorAll('[data-bullet-section]').forEach(el=>{
+  // bullets — single free-typed textarea per entry, one point per line
+  formRoot.querySelectorAll('[data-bullettext-section]').forEach(el=>{
     el.addEventListener('input', ()=>{
-      const key = el.dataset.bulletSection, id = el.dataset.entry, bi = parseInt(el.dataset.bulletIndex,10);
+      const key = el.dataset.bullettextSection, id = el.dataset.entryId;
       const entry = data.sections[key].entries.find(e=>e.id===id);
-      if(!entry) return;
-
-      if(el.value.indexOf('\n') !== -1){
-        // Enter was pressed (or multi-line text was pasted): split into
-        // separate bullets instead of keeping the line break inline.
-        const parts = el.value.split('\n');
-        entry.bullets[bi] = parts[0];
-        const rest = parts.slice(1);
-        entry.bullets.splice(bi + 1, 0, ...rest);
-        renderForm();
-        renderPreview();
-        requestAnimationFrame(()=>{
-          const newIndex = bi + rest.length;
-          const newEl = formRoot.querySelector(
-            `[data-bullet-section="${key}"][data-entry="${id}"][data-bullet-index="${newIndex}"]`
-          );
-          if(newEl){
-            newEl.focus();
-            const len = newEl.value.length;
-            newEl.setSelectionRange(len, len);
-          }
-        });
-        return;
-      }
-
-      entry.bullets[bi] = el.value;
+      if(entry) entry.bulletsText = el.value;
       renderPreview();
     });
   });
@@ -633,13 +602,17 @@ function renderPreview(){
       <img src="${data.photo}" alt="Foto profil">
     </div>` : '';
 
-  const sectionOrder = ['education','experience','volunteer','projects','awards'];
-  const sectionsHtml = sectionOrder.map(key=>{
+  const sectionsHtml = data.sectionOrder.map(key=>{
     const sec = data.sections[key];
-    const validEntries = sec.entries.filter(e => e.left || e.subLeft || e.bullets.some(b=>b));
+    const validEntries = sec.entries.filter(e => e.left || e.subLeft || (e.bulletsText && e.bulletsText.trim()));
     if(validEntries.length===0) return '';
     const entriesHtml = validEntries.map(e=>{
-      const bulletsHtml = e.bullets.filter(b=>b.trim()).map(b=>`<li>${fmt(b)}</li>`).join('');
+      const bulletsHtml = (e.bulletsText||'')
+        .split('\n')
+        .map(l=>l.trim())
+        .filter(l=>l)
+        .map(l=>`<li>${fmt(l)}</li>`)
+        .join('');
       const subRightDisplay = (key === 'education' && e.subRight) ? `GPA: ${e.subRight}` : e.subRight;
       return `
         <div class="r-entry">
@@ -727,8 +700,7 @@ document.getElementById('fileImport').addEventListener('change', (e)=>{
   reader.onload = ()=>{
     try{
       const parsed = JSON.parse(reader.result);
-      data = parsed;
-      normalizeBullets();
+      data = migrateData(parsed);
       renderForm(); renderPreview();
     }catch(err){
       alert('File JSON tidak valid.');
