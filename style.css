@@ -322,6 +322,8 @@
   }
   .r-photo{
     flex:0 0 auto;
+    /* Ukuran foto di CV: ubah dua baris ini untuk besar-kecilnya.
+       Rasio potret 3:4 (contoh lain: 90x120, 110x146). */
     width:98px;
     height:124px;
     border-radius:8px;
@@ -368,6 +370,39 @@
   .r-header.has-photo .r-contact .sep,
   .r-header.has-photo .r-links .sep{
     margin:0 6px;
+  }
+  /* Left-aligned mode: strip the leading margin on the first link so the
+     links row starts at the exact same x position as the contact row
+     above it, instead of sitting 8px further in. */
+  .r-header.has-photo .r-links a{
+    margin:0 8px 0 0;
+  }
+  .r-header.has-photo .r-links a + a{
+    margin-left:8px;
+  }
+  /* Two-column header: text column on the left, photo column on the right.
+     The columns sit side by side, so body text never flows underneath
+     the photo. The summary lives inside the left column here. */
+  .r-header.has-photo{
+    display:flex;
+    align-items:flex-start;
+    gap:20px;
+    margin-bottom:4px;
+  }
+  .r-header.has-photo .r-photo{
+    /* naik/turun foto -> ubah margin-top di bawah ini
+       (contoh: 10px = turun 10px, -6px = naik 6px) */
+    margin-top:0;
+  }
+  .r-header.has-photo .r-header-text{
+    flex:1;
+    min-width:0;
+  }
+  .r-header.has-photo .r-summary{
+    margin-bottom:0;
+  }
+  .r-header.has-photo .r-links{
+    margin-bottom:8px;
   }
 
   .r-summary{

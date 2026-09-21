@@ -665,10 +665,24 @@ function renderPreview(){
     ${linksLine}
   `;
 
-  page.innerHTML = `
-    <div class="r-header ${data.photo ? 'has-photo' : ''}">
-      <div class="r-header-text">${headerTextHtml}</div>
+  // With a photo, the summary sits inside the left text column so the two
+  // form a proper column pair — text never runs underneath the photo.
+  // Without a photo, the summary is a normal full-width block below.
+  page.innerHTML = data.photo ? `
+    <div class="r-header has-photo">
+      <div class="r-header-text">
+        ${headerTextHtml}
+        ${summaryLine}
+      </div>
       ${photoHtml}
+    </div>
+    ${sectionsHtml}
+    ${certsHtml}
+    ${skillsHtml}
+    ${langsHtml}
+  ` : `
+    <div class="r-header">
+      <div class="r-header-text">${headerTextHtml}</div>
     </div>
     ${summaryLine}
     ${sectionsHtml}
