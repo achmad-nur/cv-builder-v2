@@ -298,11 +298,23 @@
     display:flex;
     justify-content:center;
   }
+  .pages{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    /* visible gap between stacked "sheets" so a new page reads clearly
+       as a new page, instead of content just running past the edge */
+    gap:28px;
+  }
   .page{
     background:var(--paper);
     color:var(--ink);
     width:816px;
     min-height:1056px;
+    /* visible (not hidden): if the height estimate is ever slightly off,
+       a page just looks a bit taller than usual instead of silently
+       swallowing content the way overflow:hidden would */
+    overflow:visible;
     padding:44px 54px;
     box-shadow:0 20px 60px rgba(0,0,0,0.45);
     font-family:Arial, Helvetica, sans-serif;
@@ -406,6 +418,7 @@
   }
 
   .r-summary{
+    text-align: justify;
     margin:0 0 14px;
     color:#222;
   }
@@ -477,21 +490,38 @@
       max-height:none;
       overflow:visible;
     }
+    .pages{
+      display:block;
+      gap:0;
+    }
+    /* Each .page div was already sized in JS to fit exactly one physical
+       page's worth of content, so we force an explicit page break after
+       every one instead of relying on the browser to guess where content
+       overflows — this keeps the printed PDF pixel-for-pixel consistent
+       with what's shown in the live preview. */
     .page{
       box-shadow:none;
       width:auto;
+      height:auto;
       min-height:auto;
+      overflow:visible;
       padding:0;
       margin:0;
+      break-after: page;
+      page-break-after: always;
+    }
+    .page:last-child{
+      break-after: auto;
+      page-break-after: auto;
     }
     /* Margin here applies consistently to every printed page (unlike padding
        on .page, which the browser only honors on the first/last page of a
        multi-page element) — this is what keeps page 2+ from hugging the edge. */
     @page{ margin:18mm 16mm; size:A4; }
 
-    /* Keep each entry, header block, and row together — never split an
-       item's title from its own bullets/date across a page boundary.
-       Content that doesn't fit simply flows onto a fresh page instead. */
+    /* Safety net: if the JS measurement was ever slightly off and a page's
+       content is a hair too tall, don't let an entry get cut mid-way —
+       push the whole entry to the next page instead. */
     .r-entry,
     .r-header,
     .r-cert-row,
@@ -511,7 +541,7 @@
     .app{ grid-template-columns:1fr; }
     .panel{ position:relative; max-height:none; }
     .preview-wrap{ padding:20px; }
-    .page{ width:100%; padding:28px; }
+    .page{ width:100%; height:auto; min-height:auto; overflow:visible; padding:28px; }
   }
 
   :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
